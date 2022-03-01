@@ -36,8 +36,9 @@ strategyType: RollingUpdate
 ## Image
 ##
 image:
-  registry: index.docker.io
-  repository: appsmith/appsmith-ce
+  #registry: index.docker.io
+  registry: reg.dc
+  repository: appsmith
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
@@ -63,15 +64,15 @@ serviceAccount:
 podAnnotations: {}
 
 podSecurityContext: {}
-  # fsGroup: 2000
+  #fsGroup: 2000
 
 securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+  #capabilities:
+  #  drop:
+  #  - ALL
+  #readOnlyRootFilesystem: false
+    #runAsNonRoot: true
+    #runAsUser: 1000
 
 service:
   ## @param service.type Kubernetes Service type
@@ -106,24 +107,27 @@ service:
 ingress:
   ## @param ingress.enabled Enable ingress record generation for Ghost
   ##
-  enabled: false
+  enabled: true
   ## @param ingress.annotations Additional custom annotations for the ingress record
   ## NOTE: If `ingress.certManager=true`, annotation `kubernetes.io/tls-acme: "true"` will automatically be added
   ##
-  annotations: {}
+  annotations:
     # kubernetes.io/ingress.class: nginx
     # cert-manager.io/cluster-issuer: "letsencrypt-prod"
     # nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-  hosts: []
-    # - host: appsmith-domain.me
+    cert-manager.io/cluster-issuer: vault-issuer
+    traefik.ingress.kubernetes.io/router.tls: 'true'
+
+  hosts:
+    - host: appsmith.dc
   ## @param ingress.tls Enable TLS configuration for the host defined at `ingress.hosts` parameter
   ## You can:
   ##   - Use the `ingress.secrets` parameter to create this TLS secret
   ##   - Relay on cert-manager to create it by setting `ingress.certManager=true`
   ##   - Relay on Helm to create self-signed certificates by setting `ingress.selfSigned=true`
   ##
-  tls: false
+  tls: true
   ## @param ingress.secrets Custom TLS certificates as secrets
   ## NOTE: 'key' and 'certificate' are expected in PEM format
   ## NOTE: 'name' should line up with a 'secretName' set further up
@@ -153,7 +157,10 @@ ingress:
   ##   - hosts:
   ##       - appsmith-domain.me
   ##     secretName: appsmith-tls
-  certManagerTls: []
+  certManagerTls:
+    - hosts:
+        - appsmith.dc
+      secretName: appsmith-tls
   ## @parm ingress.className Configure Ingress class that being used in ingress resource
   ## e.g:
   ## className: "nginx"
@@ -264,7 +271,7 @@ storageClass:
 autoupdate:
   ## @param autoupdate.enabled - Enable config autoupdate
   ##
-  enabled: true
+  enabled: false
   ## @param autoupdate.scheduler - Schedule cron job to check & update Helm image
   ##
   scheduler: "0 * * * *"
@@ -289,8 +296,26 @@ applicationConfig:
   APPSMITH_RECAPTCHA_SITE_KEY: ""
   APPSMITH_RECAPTCHA_SECRET_KEY: ""
   APPSMITH_RECAPTCHA_ENABLED: ""
-  APPSMITH_MONGODB_URI: ""
-  APPSMITH_REDIS_URL: ""
-  APPSMITH_ENCRYPTION_PASSWORD: ""
-  APPSMITH_ENCRYPTION_SALT: ""
-  APPSMITH_CUSTOM_DOMAIN: ""
+#  APPSMITH_MONGODB_URI: "mongodb://127.0.0.1/appsmith"
+  APPSMITH_MONGODB_URI: "mongodb://root:root@appsmith-mongodb-headless:27017/appsmith?authSource=admin"
+  APPSMITH_API_BASE_URL: "http://127.0.0.1:8080/api/v1"
+  APPSMITH_REDIS_URL: "redis://127.0.0.1:6379"
+  APPSMITH_ENCRYPTION_PASSWORD: "12345"
+  APPSMITH_ENCRYPTION_SALT: "12345"
+  APPSMITH_CUSTOM_DOMAIN: "appsmith.dc"
+
+mongodb:
+  enabled: true
+  architecture: replicaset
+  #initdbScriptsConfigMap: appsmith-mongodb-init
+  auth:
+    usernames:
+    - root
+    passwords:
+    - root
+    rootPassword: root
+    databases:
+    - appsmith
+
+  replicaSetConfigurationSettings:
+    enabled: false
